@@ -11,8 +11,11 @@
   input, button { padding:10px; font-size:1.2rem; }
   button { background:red; border:none; color:black; cursor:pointer; }
   #countdown { font-size:3rem; margin-top:40px; }
-  #others { position:fixed; right:0; top:0; background: rgba(255,0,0,0.15); width:300px; height:100%; padding:10px; overflow-y:auto; border-left:1px solid red; }
-  .entry { margin-bottom:10px; border-bottom:1px solid red; padding-bottom:10px; }
+  #others, #futureSummons { position:fixed; right:0; top:0; background: rgba(255,0,0,0.15); width:300px; height:100%; padding:10px; overflow-y:auto; border-left:1px solid red; }
+  #futureSummons { right: 310px; border-left:none; display:none; }
+  .entry { margin-bottom:10px; border-bottom:1px solid red; padding-bottom:10px; cursor:pointer; }
+  #openFuture { position:fixed; right:0; top:50%; transform:translateY(-50%); background:red; color:black; padding:5px 10px; cursor:pointer; }
+  #fullScreenCountdown { position:fixed; top:0; left:0; width:100%; height:100%; background:black; color:red; font-size:5rem; display:flex; align-items:center; justify-content:center; z-index:9999; display:none; }
 </style>
 </head>
 <body>
@@ -21,25 +24,32 @@
   <div>
     <input id="username" placeholder="הכנס את שמך" />
     <input id="datetime" type="datetime-local" />
-    <button onclick="summonSelf()">זמן את עצמך</button>
+    <button onclick="summonSelf()">חפש את הזימונים שלך</button>
   </div>
   <div style="margin-top:20px">
     <input id="targetName" placeholder="שם אדם אחר" />
     <input id="targetDatetime" type="datetime-local" />
-    <button onclick="summonOther()">זמן אדם אחר</button>
+    <button onclick="summonOther()">זמן</button>
   </div>
   <div id="countdown"></div>
 </div>
+
 <div id="others">
   <h3>זימונים פעילים</h3>
   <div id="othersList"></div>
 </div>
 
+<div id="futureSummons">
+  <h3>זימונים עתידיים</h3>
+  <div id="futureList"></div>
+</div>
+<div id="openFuture" onclick="toggleFuture()">זימונים עתידיים ⯈</div>
+<div id="fullScreenCountdown"></div>
+
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-database.js"></script>
 <script>
-// --- CONFIG ---
 const firebaseConfig = {
   apiKey: "AIzaSyDJc3JgIJ1-39x9S_NnqziatsMCQ4AvYjU",
   authDomain: "stirbul.firebaseapp.com",
@@ -80,33 +90,48 @@ function startPersonal(name,end) {
 
 function startCountdown(entry) {
   const countdown = document.getElementById('countdown');
+  const fullScreen = document.getElementById('fullScreenCountdown');
+  fullScreen.style.display='flex';
   const interval = setInterval(()=>{
     const remaining = entry.end - Date.now();
-    if(remaining<=0){ countdown.innerHTML='זה מתחיל'; clearInterval(interval); return; }
+    if(remaining<=0){ fullScreen.innerHTML='זה מתחיל'; clearInterval(interval); return; }
     const days = Math.floor(remaining/86400000);
     const hours = Math.floor((remaining%86400000)/3600000);
     const mins = Math.floor((remaining%3600000)/60000);
     const secs = Math.floor((remaining%60000)/1000);
-    countdown.innerHTML = `${days} ימים ${hours} שעות ${mins} דקות ${secs} שניות`;
+    fullScreen.innerHTML = `${days} ימים ${hours} שעות ${mins} דקות ${secs} שניות`;
   },500);
+}
+
+function toggleFuture(){
+  const future = document.getElementById('futureSummons');
+  future.style.display = future.style.display==='none'?'block':'none';
 }
 
 function renderOthers() {
   const container = document.getElementById('othersList');
+  const futureContainer = document.getElementById('futureList');
+  const userName = document.getElementById('username').value.trim();
   db.ref('summons').on('value', snap=>{
     container.innerHTML='';
+    futureContainer.innerHTML='';
     const data = snap.val()||{};
     Object.values(data).forEach(s=>{
       const div = document.createElement('div');
       div.className='entry';
       function update(){
         const remaining = s.end - Date.now();
-        if(remaining<0){ div.innerHTML=`<b>${s.name}</b><br>זה התחיל`; return; }
-        const days = Math.floor(remaining/86400000);
-        const hours = Math.floor((remaining%86400000)/3600000);
-        const mins = Math.floor((remaining%3600000)/60000);
-        const secs = Math.floor((remaining%60000)/1000);
-        div.innerHTML=`<b>${s.name}</b><br>נותר: ${days} ימים ${hours} שעות ${mins} דקות ${secs} שניות`;
+        if(s.name === userName){
+          // skip in future list, already shown full screen if self
+          return;
+        }
+        if(remaining>0){
+          futureContainer.appendChild(div);
+          div.innerHTML=`<b>${s.name}</b><br>נותר: ${Math.floor(remaining/86400000)} ימים ${Math.floor((remaining%86400000)/3600000)} שעות ${Math.floor((remaining%3600000)/60000)} דקות ${Math.floor((remaining%60000)/1000)} שניות`;
+        } else {
+          div.innerHTML=`<b>${s.name}</b><br>זה התחיל`;
+          container.appendChild(div);
+        }
       }
       update();
       setInterval(update,1000);
