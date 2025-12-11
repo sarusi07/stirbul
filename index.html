@@ -8,12 +8,14 @@
   body { margin:0; font-family: Arial; background:black; color:red; text-align:center; }
   #container { padding:20px; }
   h1 { font-size:3rem; margin-top:40px; }
-  input, button { padding:10px; font-size:1.2rem; }
-  button { background:red; border:none; color:black; cursor:pointer; }
+  input { padding:10px; font-size:1.2rem; margin:5px; width:200px; }
+  button { padding:10px 15px; font-size:1rem; margin:5px; background:red; border:none; color:black; cursor:pointer; border-radius:5px; }
+  button:hover { background:#ff6666; }
   #countdown { font-size:3rem; margin-top:40px; }
   #futureSummons { position:fixed; right:0; top:0; background: rgba(255,0,0,0.15); width:300px; height:100%; padding:10px; overflow-y:auto; border-left:1px solid red; }
   .entry { margin-bottom:10px; border-bottom:1px solid red; padding-bottom:10px; cursor:pointer; }
-  #openFuture { position:fixed; right:0; top:50%; transform:translateY(-50%); background:red; color:black; padding:5px 10px; cursor:pointer; }
+  #openFuture { position:fixed; right:0; top:50%; transform:translateY(-50%); background:red; color:black; padding:5px 10px; cursor:pointer; border-radius:5px; }
+  #openFuture:hover { background:#ff6666; }
   #fullScreenCountdown { position:fixed; top:0; left:0; width:100%; height:100%; background:black; color:red; font-size:5rem; display:flex; align-items:center; justify-content:center; z-index:9999; display:none; }
   .smallCountdown { font-size:1rem; }
 </style>
@@ -23,12 +25,12 @@
   <h1>ברוך הבא לטקס ה‑Stirboul</h1>
   <div>
     <input id="username" placeholder="הכנס את שמך" />
-    <button onclick="summonSelf()">חפש את הזימונים שלך</button>
+    <button id="searchButton">חפש את הזימונים שלך</button>
   </div>
   <div style="margin-top:20px">
     <input id="targetName" placeholder="שם אדם אחר" />
     <input id="targetDatetime" type="datetime-local" />
-    <button onclick="summonOther()">זמן אדם אחר</button>
+    <button id="summonButton">זמן אדם אחר</button>
   </div>
   <div id="countdown"></div>
 </div>
@@ -37,7 +39,7 @@
   <h3>זימונים עתידיים</h3>
   <div id="futureList"></div>
 </div>
-<div id="openFuture" onclick="toggleFuture()">זימונים עתידיים ⯈</div>
+<div id="openFuture">זימונים עתידיים ⯈</div>
 <div id="fullScreenCountdown"></div>
 
 <!-- Firebase -->
@@ -61,6 +63,24 @@ function summon(name, endTime) {
   db.ref('summons').push({ name, end: endTime });
 }
 
+function startPersonal(name,end) {
+  startCountdown({name,end});
+}
+
+function startCountdown(entry) {
+  const fullScreen = document.getElementById('fullScreenCountdown');
+  fullScreen.style.display='flex';
+  const interval = setInterval(()=>{
+    const remaining = entry.end - Date.now();
+    if(remaining<=0){ fullScreen.innerHTML='זה מתחיל'; clearInterval(interval); return; }
+    const days = Math.floor(remaining/86400000);
+    const hours = Math.floor((remaining%86400000)/3600000);
+    const mins = Math.floor((remaining%3600000)/60000);
+    const secs = Math.floor((remaining%60000)/1000);
+    fullScreen.innerHTML = `${days} ימים ${hours} שעות ${mins} דקות ${secs} שניות`;
+  },500);
+}
+
 function summonSelf() {
   const n = document.getElementById('username').value.trim();
   if(!n) return;
@@ -80,24 +100,6 @@ function summonOther() {
   if(!n || !dt) return;
   const end = new Date(dt).getTime();
   summon(n,end);
-}
-
-function startPersonal(name,end) {
-  startCountdown({name,end});
-}
-
-function startCountdown(entry) {
-  const fullScreen = document.getElementById('fullScreenCountdown');
-  fullScreen.style.display='flex';
-  const interval = setInterval(()=>{
-    const remaining = entry.end - Date.now();
-    if(remaining<=0){ fullScreen.innerHTML='זה מתחיל'; clearInterval(interval); return; }
-    const days = Math.floor(remaining/86400000);
-    const hours = Math.floor((remaining%86400000)/3600000);
-    const mins = Math.floor((remaining%3600000)/60000);
-    const secs = Math.floor((remaining%60000)/1000);
-    fullScreen.innerHTML = `${days} ימים ${hours} שעות ${mins} דקות ${secs} שניות`;
-  },500);
 }
 
 function toggleFuture(){
@@ -135,6 +137,12 @@ function renderOthers() {
     });
   });
 }
+
+// attach events
+document.getElementById('searchButton').addEventListener('click', summonSelf);
+document.getElementById('summonButton').addEventListener('click', summonOther);
+document.getElementById('openFuture').addEventListener('click', toggleFuture);
+
 renderOthers();
 </script>
 </body>
