@@ -11,11 +11,11 @@
   input, button { padding:10px; font-size:1.2rem; }
   button { background:red; border:none; color:black; cursor:pointer; }
   #countdown { font-size:3rem; margin-top:40px; }
-  #others, #futureSummons { position:fixed; right:0; top:0; background: rgba(255,0,0,0.15); width:300px; height:100%; padding:10px; overflow-y:auto; border-left:1px solid red; }
-  #futureSummons { right: 310px; border-left:none; display:none; }
+  #futureSummons { position:fixed; right:0; top:0; background: rgba(255,0,0,0.15); width:300px; height:100%; padding:10px; overflow-y:auto; border-left:1px solid red; }
   .entry { margin-bottom:10px; border-bottom:1px solid red; padding-bottom:10px; cursor:pointer; }
   #openFuture { position:fixed; right:0; top:50%; transform:translateY(-50%); background:red; color:black; padding:5px 10px; cursor:pointer; }
   #fullScreenCountdown { position:fixed; top:0; left:0; width:100%; height:100%; background:black; color:red; font-size:5rem; display:flex; align-items:center; justify-content:center; z-index:9999; display:none; }
+  .smallCountdown { font-size:1rem; }
 </style>
 </head>
 <body>
@@ -23,20 +23,14 @@
   <h1>ברוך הבא לטקס ה‑Stirboul</h1>
   <div>
     <input id="username" placeholder="הכנס את שמך" />
-    <input id="datetime" type="datetime-local" />
     <button onclick="summonSelf()">חפש את הזימונים שלך</button>
   </div>
   <div style="margin-top:20px">
     <input id="targetName" placeholder="שם אדם אחר" />
     <input id="targetDatetime" type="datetime-local" />
-    <button onclick="summonOther()">זמן</button>
+    <button onclick="summonOther()">זמן אדם אחר</button>
   </div>
   <div id="countdown"></div>
-</div>
-
-<div id="others">
-  <h3>זימונים פעילים</h3>
-  <div id="othersList"></div>
 </div>
 
 <div id="futureSummons">
@@ -69,11 +63,15 @@ function summon(name, endTime) {
 
 function summonSelf() {
   const n = document.getElementById('username').value.trim();
-  const dt = document.getElementById('datetime').value;
-  if(!n || !dt) return;
-  const end = new Date(dt).getTime();
-  summon(n,end);
-  startPersonal(n,end);
+  if(!n) return;
+  db.ref('summons').once('value', snap => {
+    const data = snap.val() || {};
+    Object.values(data).forEach(s => {
+      if(s.name === n){
+        startPersonal(n, s.end);
+      }
+    });
+  });
 }
 
 function summonOther() {
@@ -89,7 +87,6 @@ function startPersonal(name,end) {
 }
 
 function startCountdown(entry) {
-  const countdown = document.getElementById('countdown');
   const fullScreen = document.getElementById('fullScreenCountdown');
   fullScreen.style.display='flex';
   const interval = setInterval(()=>{
@@ -109,33 +106,32 @@ function toggleFuture(){
 }
 
 function renderOthers() {
-  const container = document.getElementById('othersList');
   const futureContainer = document.getElementById('futureList');
   const userName = document.getElementById('username').value.trim();
   db.ref('summons').on('value', snap=>{
-    container.innerHTML='';
     futureContainer.innerHTML='';
     const data = snap.val()||{};
     Object.values(data).forEach(s=>{
       const div = document.createElement('div');
       div.className='entry';
+      const smallCountdown = document.createElement('div');
+      smallCountdown.className = 'smallCountdown';
       function update(){
         const remaining = s.end - Date.now();
         if(s.name === userName){
-          // skip in future list, already shown full screen if self
           return;
         }
         if(remaining>0){
-          futureContainer.appendChild(div);
-          div.innerHTML=`<b>${s.name}</b><br>נותר: ${Math.floor(remaining/86400000)} ימים ${Math.floor((remaining%86400000)/3600000)} שעות ${Math.floor((remaining%3600000)/60000)} דקות ${Math.floor((remaining%60000)/1000)} שניות`;
+          smallCountdown.innerHTML = `נותר: ${Math.floor(remaining/86400000)} ימים ${Math.floor((remaining%86400000)/3600000)} שעות ${Math.floor((remaining%3600000)/60000)} דקות ${Math.floor((remaining%60000)/1000)} שניות`;
         } else {
-          div.innerHTML=`<b>${s.name}</b><br>זה התחיל`;
-          container.appendChild(div);
+          smallCountdown.innerHTML = 'זה התחיל';
         }
       }
       update();
       setInterval(update,1000);
-      container.appendChild(div);
+      div.innerHTML = `<b>${s.name}</b>`;
+      div.appendChild(smallCountdown);
+      futureContainer.appendChild(div);
     });
   });
 }
