@@ -12,12 +12,13 @@
   button { padding:10px 15px; font-size:1rem; margin:5px; background:red; border:none; color:black; cursor:pointer; border-radius:5px; }
   button:hover { background:#ff6666; }
   #countdown { font-size:3rem; margin-top:40px; }
-  #futureSummons { position:fixed; right:0; top:0; background: rgba(255,0,0,0.15); width:300px; height:100%; padding:10px; overflow-y:auto; border-left:1px solid red; display:none; }
+  #futureSummons { position:fixed; right:0; top:0; background: rgba(255,0,0,0.15); width:300px; height:100%; padding:10px; overflow-y:auto; border-left:1px solid red; }
   .entry { margin-bottom:10px; border-bottom:1px solid red; padding-bottom:10px; cursor:pointer; }
   #openFuture { position:fixed; right:0; top:50%; transform:translateY(-50%); background:red; color:black; padding:5px 10px; cursor:pointer; border-radius:5px; }
   #openFuture:hover { background:#ff6666; }
   #fullScreenCountdown { position:fixed; top:0; left:0; width:100%; height:100%; background:black; color:red; font-size:5rem; display:flex; align-items:center; justify-content:center; z-index:9999; display:none; }
   .smallCountdown { font-size:1rem; }
+  .message { font-size:1.2rem; margin:10px 0; }
 </style>
 </head>
 <body>
@@ -25,8 +26,10 @@
   <h1>ברוך הבא לטקס ה‑Stirboul</h1>
   <div>
     <input id="username" placeholder="הכנס את שמך" />
-    <button onclick="summonSelf()">חפש את הזימונים שלך</button>
+    <input id="datetime" type="datetime-local" />
+    <button onclick="summonSelf()">חפש או זמן את עצמך</button>
   </div>
+  <div id="message" class="message"></div>
   <div style="margin-top:20px">
     <input id="targetName" placeholder="שם אדם אחר" />
     <input id="targetDatetime" type="datetime-local" />
@@ -63,10 +66,6 @@ function summon(name, endTime) {
   db.ref('summons').push({ name, end: endTime });
 }
 
-function startPersonal(name,end) {
-  startCountdown({name,end});
-}
-
 function startCountdown(entry) {
   const fullScreen = document.getElementById('fullScreenCountdown');
   fullScreen.style.display='flex';
@@ -83,23 +82,40 @@ function startCountdown(entry) {
 
 function summonSelf() {
   const n = document.getElementById('username').value.trim();
-  if(!n) return;
-  db.ref('summons').once('value', snap => {
-    const data = snap.val() || {};
-    Object.values(data).forEach(s => {
-      if(s.name === n){
-        startPersonal(n, s.end);
-      }
+  const dtInput = document.getElementById('datetime').value;
+  const msg = document.getElementById('message');
+  if(!n){ msg.innerText='אנא הכנס שם.'; return; }
+
+  if(dtInput){
+    // אם יש תאריך - זימון חדש
+    const end = new Date(dtInput).getTime();
+    summon(n,end);
+    startCountdown({name:n,end});
+    msg.innerText=`זימנת את עצמך ל-${dtInput}`;
+  } else {
+    // אחרת - חיפוש זימונים קיימים
+    db.ref('summons').once('value', snap => {
+      const data = snap.val() || {};
+      let found = false;
+      Object.values(data).forEach(s => {
+        if(s.name === n){
+          startCountdown({name:n,end:s.end});
+          found = true;
+        }
+      });
+      msg.innerText = found ? 'זימון שלך נמצא והספירה מוצגת!' : 'אין זימונים עבורך.';
     });
-  });
+  }
 }
 
 function summonOther() {
   const n = document.getElementById('targetName').value.trim();
   const dt = document.getElementById('targetDatetime').value;
-  if(!n || !dt) return;
+  const msg = document.getElementById('message');
+  if(!n || !dt){ msg.innerText='אנא הכנס שם ותאריך'; return; }
   const end = new Date(dt).getTime();
   summon(n,end);
+  msg.innerText=`זימנת את ${n} ל-${dt}`;
 }
 
 function toggleFuture(){
@@ -107,9 +123,8 @@ function toggleFuture(){
   future.style.display = future.style.display==='none'?'block':'none';
 }
 
-function renderOthers() {
+function renderFuture() {
   const futureContainer = document.getElementById('futureList');
-  const userName = document.getElementById('username').value.trim();
   db.ref('summons').on('value', snap=>{
     futureContainer.innerHTML='';
     const data = snap.val()||{};
@@ -117,12 +132,9 @@ function renderOthers() {
       const div = document.createElement('div');
       div.className='entry';
       const smallCountdown = document.createElement('div');
-      smallCountdown.className = 'smallCountdown';
+      smallCountdown.className='smallCountdown';
       function update(){
         const remaining = s.end - Date.now();
-        if(s.name === userName){
-          return;
-        }
         if(remaining>0){
           smallCountdown.innerHTML = `נותר: ${Math.floor(remaining/86400000)} ימים ${Math.floor((remaining%86400000)/3600000)} שעות ${Math.floor((remaining%3600000)/60000)} דקות ${Math.floor((remaining%60000)/1000)} שניות`;
         } else {
@@ -138,8 +150,7 @@ function renderOthers() {
   });
 }
 
-// לא צריכים להוסיף EventListener נפרד כי הכפתורים משתמשים ב-onclick בתגיות HTML
-renderOthers();
+renderFuture();
 </script>
 </body>
 </html>
