@@ -12,7 +12,7 @@
   button { padding:10px 15px; font-size:1rem; margin:5px; background:red; border:none; color:black; cursor:pointer; border-radius:5px; }
   button:hover { background:#ff6666; }
   #countdown { font-size:3rem; margin-top:40px; }
-  #futureSummons { position:fixed; right:0; top:0; background: rgba(255,0,0,0.15); width:300px; height:100%; padding:10px; overflow-y:auto; border-left:1px solid red; }
+  #futureSummons { position:fixed; right:0; top:0; background: rgba(255,0,0,0.15); width:300px; height:100%; padding:10px; overflow-y:auto; border-left:1px solid red; display:none; }
   .entry { margin-bottom:10px; border-bottom:1px solid red; padding-bottom:10px; cursor:pointer; }
   #openFuture { position:fixed; right:0; top:50%; transform:translateY(-50%); background:red; color:black; padding:5px 10px; cursor:pointer; border-radius:5px; }
   #openFuture:hover { background:#ff6666; }
@@ -25,12 +25,12 @@
   <h1>ברוך הבא לטקס ה‑Stirboul</h1>
   <div>
     <input id="username" placeholder="הכנס את שמך" />
-    <button id="searchButton">חפש את הזימונים שלך</button>
+    <button onclick="summonSelf()">חפש את הזימונים שלך</button>
   </div>
   <div style="margin-top:20px">
     <input id="targetName" placeholder="שם אדם אחר" />
     <input id="targetDatetime" type="datetime-local" />
-    <button id="summonButton">זמן אדם אחר</button>
+    <button onclick="summonOther()">זמן אדם אחר</button>
   </div>
   <div id="countdown"></div>
 </div>
@@ -39,7 +39,7 @@
   <h3>זימונים עתידיים</h3>
   <div id="futureList"></div>
 </div>
-<div id="openFuture">זימונים עתידיים ⯈</div>
+<div id="openFuture" onclick="toggleFuture()">זימונים עתידיים ⯈</div>
 <div id="fullScreenCountdown"></div>
 
 <!-- Firebase -->
@@ -138,11 +138,7 @@ function renderOthers() {
   });
 }
 
-// attach events
-document.getElementById('searchButton').addEventListener('click', summonSelf);
-document.getElementById('summonButton').addEventListener('click', summonOther);
-document.getElementById('openFuture').addEventListener('click', toggleFuture);
-
+// לא צריכים להוסיף EventListener נפרד כי הכפתורים משתמשים ב-onclick בתגיות HTML
 renderOthers();
 </script>
 </body>
