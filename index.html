@@ -26,16 +26,9 @@
   <h1>ברוך הבא לטקס ה‑Stirboul</h1>
   <div>
     <input id="username" placeholder="הכנס את שמך" />
-    <input id="datetime" type="datetime-local" />
-    <button onclick="summonSelf()">חפש או זמן את עצמך</button>
+    <button onclick="checkMySummons()">בדוק את הזימונים שלי</button>
   </div>
   <div id="message" class="message"></div>
-  <div style="margin-top:20px">
-    <input id="targetName" placeholder="שם אדם אחר" />
-    <input id="targetDatetime" type="datetime-local" />
-    <button onclick="summonOther()">זמן אדם אחר</button>
-  </div>
-  <div id="countdown"></div>
 </div>
 
 <div id="futureSummons">
@@ -62,8 +55,27 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-function summon(name, endTime) {
-  db.ref('summons').push({ name, end: endTime });
+function toggleFuture(){
+  const future = document.getElementById('futureSummons');
+  future.style.display = future.style.display==='none'?'block':'none';
+}
+
+function checkMySummons() {
+  const n = document.getElementById('username').value.trim();
+  const msg = document.getElementById('message');
+  if(!n){ msg.innerText='אנא הכנס שם.'; return; }
+
+  db.ref('summons').once('value', snap => {
+    const data = snap.val() || {};
+    let found = false;
+    Object.values(data).forEach(s => {
+      if(s.name === n){
+        found = true;
+        startCountdown(s);
+      }
+    });
+    msg.innerText = found ? 'מצאתי זימונים עבורך! הספירה מוצגת על המסך.' : 'אין זימונים עבורך.';
+  });
 }
 
 function startCountdown(entry) {
@@ -78,49 +90,6 @@ function startCountdown(entry) {
     const secs = Math.floor((remaining%60000)/1000);
     fullScreen.innerHTML = `${days} ימים ${hours} שעות ${mins} דקות ${secs} שניות`;
   },500);
-}
-
-function summonSelf() {
-  const n = document.getElementById('username').value.trim();
-  const dtInput = document.getElementById('datetime').value;
-  const msg = document.getElementById('message');
-  if(!n){ msg.innerText='אנא הכנס שם.'; return; }
-
-  if(dtInput){
-    // אם יש תאריך - זימון חדש
-    const end = new Date(dtInput).getTime();
-    summon(n,end);
-    startCountdown({name:n,end});
-    msg.innerText=`זימנת את עצמך ל-${dtInput}`;
-  } else {
-    // אחרת - חיפוש זימונים קיימים
-    db.ref('summons').once('value', snap => {
-      const data = snap.val() || {};
-      let found = false;
-      Object.values(data).forEach(s => {
-        if(s.name === n){
-          startCountdown({name:n,end:s.end});
-          found = true;
-        }
-      });
-      msg.innerText = found ? 'זימון שלך נמצא והספירה מוצגת!' : 'אין זימונים עבורך.';
-    });
-  }
-}
-
-function summonOther() {
-  const n = document.getElementById('targetName').value.trim();
-  const dt = document.getElementById('targetDatetime').value;
-  const msg = document.getElementById('message');
-  if(!n || !dt){ msg.innerText='אנא הכנס שם ותאריך'; return; }
-  const end = new Date(dt).getTime();
-  summon(n,end);
-  msg.innerText=`זימנת את ${n} ל-${dt}`;
-}
-
-function toggleFuture(){
-  const future = document.getElementById('futureSummons');
-  future.style.display = future.style.display==='none'?'block':'none';
 }
 
 function renderFuture() {
