@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Stirboul Summoner</title>
+<style>
+  body { margin:0; font-family: Arial; background:black; color:red; text-align:center; }
+  #container { padding:20px; }
+  h1 { font-size:3rem; margin-top:40px; }
+  input, button { padding:10px; font-size:1.2rem; }
+  button { background:red; border:none; color:black; cursor:pointer; }
+  #countdown { font-size:3rem; margin-top:40px; }
+  #others { position:fixed; right:0; top:0; background: rgba(255,0,0,0.15); width:300px; height:100%; padding:10px; overflow-y:auto; border-left:1px solid red; }
+  .entry { margin-bottom:10px; border-bottom:1px solid red; padding-bottom:10px; }
+</style>
+</head>
+<body>
+<div id="container">
+  <h1>ברוך הבא לטקס ה‑Stirboul</h1>
+  <div>
+    <input id="username" placeholder="הכנס את שמך" />
+    <input id="datetime" type="datetime-local" />
+    <button onclick="summonSelf()">זמן את עצמך</button>
+  </div>
+  <div style="margin-top:20px">
+    <input id="targetName" placeholder="שם אדם אחר" />
+    <input id="targetDatetime" type="datetime-local" />
+    <button onclick="summonOther()">זמן אדם אחר</button>
+  </div>
+  <div id="countdown"></div>
+</div>
+<div id="others">
+  <h3>זימונים פעילים</h3>
+  <div id="othersList"></div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-database.js"></script>
+<script>
+// --- CONFIG ---
+const firebaseConfig = {
+  apiKey: "AIzaSyDJc3JgIJ1-39x9S_NnqziatsMCQ4AvYjU",
+  authDomain: "stirbul.firebaseapp.com",
+  databaseURL: "https://stirbul-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "stirbul",
+  storageBucket: "stirbul.firebasestorage.app",
+  messagingSenderId: "466844431862",
+  appId: "1:466844431862:web:13948fabcd6fe3615a03d7",
+  measurementId: "G-NLMNY6K8WL"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+function summon(name, endTime) {
+  db.ref('summons').push({ name, end: endTime });
+}
+
+function summonSelf() {
+  const n = document.getElementById('username').value.trim();
+  const dt = document.getElementById('datetime').value;
+  if(!n || !dt) return;
+  const end = new Date(dt).getTime();
+  summon(n,end);
+  startPersonal(n,end);
+}
+
+function summonOther() {
+  const n = document.getElementById('targetName').value.trim();
+  const dt = document.getElementById('targetDatetime').value;
+  if(!n || !dt) return;
+  const end = new Date(dt).getTime();
+  summon(n,end);
+}
+
+function startPersonal(name,end) {
+  startCountdown({name,end});
+}
+
+function startCountdown(entry) {
+  const countdown = document.getElementById('countdown');
+  const interval = setInterval(()=>{
+    const remaining = entry.end - Date.now();
+    if(remaining<=0){ countdown.innerHTML='זה מתחיל'; clearInterval(interval); return; }
+    const days = Math.floor(remaining/86400000);
+    const hours = Math.floor((remaining%86400000)/3600000);
+    const mins = Math.floor((remaining%3600000)/60000);
+    const secs = Math.floor((remaining%60000)/1000);
+    countdown.innerHTML = `${days} ימים ${hours} שעות ${mins} דקות ${secs} שניות`;
+  },500);
+}
+
+function renderOthers() {
+  const container = document.getElementById('othersList');
+  db.ref('summons').on('value', snap=>{
+    container.innerHTML='';
+    const data = snap.val()||{};
+    Object.values(data).forEach(s=>{
+      const div = document.createElement('div');
+      div.className='entry';
+      function update(){
+        const remaining = s.end - Date.now();
+        if(remaining<0){ div.innerHTML=`<b>${s.name}</b><br>זה התחיל`; return; }
+        const days = Math.floor(remaining/86400000);
+        const hours = Math.floor((remaining%86400000)/3600000);
+        const mins = Math.floor((remaining%3600000)/60000);
+        const secs = Math.floor((remaining%60000)/1000);
+        div.innerHTML=`<b>${s.name}</b><br>נותר: ${days} ימים ${hours} שעות ${mins} דקות ${secs} שניות`;
+      }
+      update();
+      setInterval(update,1000);
+      container.appendChild(div);
+    });
+  });
+}
+renderOthers();
+</script>
+</body>
+</html>
